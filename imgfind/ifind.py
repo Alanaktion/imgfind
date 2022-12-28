@@ -1,11 +1,11 @@
-import argparse
+from argparse import ArgumentParser
 from pathlib import Path
 from os import system
 from PIL import Image, UnidentifiedImageError
 
 
 def main():
-    parser = argparse.ArgumentParser(
+    parser = ArgumentParser(
         description='Find image files.', add_help=False)
     parser.add_argument('dir', type=str, nargs='?', default='.',
                         help='directory to search')
@@ -60,6 +60,7 @@ def main():
                     continue
                 if args.max_height != None and i.height > args.max_height:
                     continue
+
                 if args.exec != None:
                     system(args.exec.replace('{}', str(f)))
                 else:

@@ -4,7 +4,7 @@ A simple Python utility to find images in a filesystem, similar to [findutils](h
 
 ## Installation
 
-Requires Python 3.10 or higher, and the Pillow library.
+Requires Python 3.4 or higher, and the Pillow library.
 
 ```bash
 python -m pip install -U imgfind
