@@ -60,13 +60,12 @@ def main():
                     continue
                 if args.max_height != None and i.height > args.max_height:
                     continue
-
-                if args.exec != None:
-                    system(args.exec.replace('{}', str(f)))
-                else:
-                    print(f)
-                if args.delete:
-                    f.unlink()
+            if args.exec != None:
+                system(args.exec.replace('{}', str(f)))
+            else:
+                print(f)
+            if args.delete:
+                f.unlink()
         except UnidentifiedImageError:
             continue
 
