@@ -13,7 +13,7 @@ def main():
                         help='show this help message and exit')
     parser.add_argument('-n', '--name', type=str,
                         help='match files with this glob pattern')
-    parser.add_argument('--no-recurse', type=bool, default=False,
+    parser.add_argument('--no-recurse', action='store_true',
                         help='don\'t recurse subdirectories')
     parser.add_argument('-f', '--format', type=str,
                         help='match images with this format')
@@ -31,7 +31,9 @@ def main():
                         help='match images less than or equal to this height')
     parser.add_argument('--exec', type=str,
                         help='execute this command on each file')
-    parser.add_argument('--delete', type=bool, default=False,
+    parser.add_argument('--print', action='store_true',
+                        help='print matching files even when --exec is used')
+    parser.add_argument('--delete', action='store_true',
                         help='delete matching files')
 
     args = parser.parse_args()
@@ -62,7 +64,7 @@ def main():
                     continue
             if args.exec != None:
                 system(args.exec.replace('{}', str(f)))
-            else:
+            if args.print or args.exec == None:
                 print(f)
             if args.delete:
                 f.unlink()
