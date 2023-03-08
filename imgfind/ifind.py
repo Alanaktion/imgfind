@@ -4,7 +4,7 @@ from os import system
 from PIL import Image, UnidentifiedImageError
 
 
-def main():
+def parser():
     parser = ArgumentParser(
         description='Find image files.', add_help=False)
     parser.add_argument('dir', type=str, nargs='?', default='.',
@@ -29,14 +29,57 @@ def main():
                         help='match images less than or equal to this width')
     parser.add_argument('--max-height', type=int,
                         help='match images less than or equal to this height')
+    parser.add_argument('-r', '--ratio', type=str,
+                        help='match images with this aspect ratio')
     parser.add_argument('--exec', type=str,
                         help='execute this command on each file')
     parser.add_argument('--print', action='store_true',
-                        help='print matching files even when --exec is used')
+                        help='print matching files even when operating on them')
     parser.add_argument('--delete', action='store_true',
                         help='delete matching files')
 
-    args = parser.parse_args()
+    return parser.parse_args()
+
+
+def match_image(f, args) -> bool:
+    with Image.open(f) as i:
+        if args.format != None and \
+                i.format.casefold() != args.format.casefold():
+            return False
+        if args.width != None and i.width != args.width:
+            return False
+        if args.height != None and i.height != args.height:
+            return False
+        if args.min_width != None and i.width < args.min_width:
+            return False
+        if args.min_height != None and i.height < args.min_height:
+            return False
+        if args.max_width != None and i.width > args.max_width:
+            return False
+        if args.max_height != None and i.height > args.max_height:
+            return False
+        if args.ratio != None:
+            if args.ratio.casefold() == 'square':
+                if i.width != i.height:
+                    return False
+            elif args.ratio.casefold() == 'portrait':
+                if i.width >= i.height:
+                    return False
+            elif args.ratio.casefold() == 'landscape':
+                if i.width <= i.height:
+                    return False
+            else:
+                ratio = args.ratio.split(':')
+                if len(ratio) != 2:
+                    raise ValueError(
+                        'Invalid aspect ratio: {}'.format(args.ratio))
+                if i.width / i.height != int(ratio[0]) / int(ratio[1]):
+                    return False
+    return True
+
+
+def main():
+    args = parser()
 
     pathname = '*' if args.no_recurse else '**/*'
     if args.name != None:
@@ -46,22 +89,8 @@ def main():
         if f.is_dir():
             continue
         try:
-            with Image.open(f) as i:
-                if args.format != None and \
-                        i.format.casefold() != args.format.casefold():
-                    continue
-                if args.width != None and i.width != args.width:
-                    continue
-                if args.height != None and i.height != args.height:
-                    continue
-                if args.min_width != None and i.width < args.min_width:
-                    continue
-                if args.min_height != None and i.height < args.min_height:
-                    continue
-                if args.max_width != None and i.width > args.max_width:
-                    continue
-                if args.max_height != None and i.height > args.max_height:
-                    continue
+            if not match_image(f, args):
+                continue
             if args.exec != None:
                 system(args.exec.replace('{}', str(f)))
             if args.print or args.exec == None:
