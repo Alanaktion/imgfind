@@ -97,5 +97,5 @@ python3 -m pip install -U build twine
 python3 -m build --wheel
 
 # Upload build to PyPI
-twine upload dist/*
+python3 -m twine upload dist/*
 ```

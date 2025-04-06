@@ -10,6 +10,7 @@ import sys
 
 from .options import build_parser, Options
 from ..lib.exif import file_write_comment, file_get_comment
+from ..lib.ffmpeg import ffmpeg, ffmpeg_args
 
 
 log = logging.getLogger()
@@ -17,7 +18,6 @@ args: Options
 
 gm = shutil.which('gm')
 magick = shutil.which('magick')
-ffmpeg = shutil.which('ffmpeg')
 pngcrush = shutil.which('pngcrush')
 pngquant = shutil.which('pngquant')
 
@@ -269,56 +269,27 @@ def _handle_png_optimize(filename: str, fmt: dict):
 
 def handle_gif(filename: str) -> str | None:
     fmt = img_format(filename)
-    if fmt['scenes'] > 1:
-        if not args.gif:
-            log.debug('Skipping animated GIF: %s', os.path.basename(filename))
-            return None
+    if fmt['scenes'] <= 1:
+        return handle_generic(filename)
 
-        log.debug('Converting animated GIF: %s', os.path.basename(filename))
-        ext = args.gif
+    if not args.gif or not ffmpeg:
+        log.debug('Skipping animated GIF: %s', os.path.basename(filename))
+        return None
 
-        # TODO: Handle final frame delay not applying correctly when looping
+    log.debug('Converting animated GIF: %s', os.path.basename(filename))
+    ext = args.gif
 
-        vaapi_driver = os.environ.get('LIBVA_DRIVER_NAME')
-        if vaapi_driver and args.gif in ('mp4', 'hevc',):
-            log.debug('Using hardware acceleration')
-            ffargs = [
-                ffmpeg, '-hide_banner',
-                '-threads', '1',
-                '-hwaccel', 'vaapi', '-hwaccel_output_format', 'vaapi',
-                '-vaapi_device', '/dev/dri/renderD128',
-                '-i', filename,
-            ]
-        else:
-            ffargs = [ffmpeg, '-i', filename]
-            if args.threads:
-                ffargs += ['-threads', str(args.threads)]
+    # TODO: Handle final frame delay not applying correctly when looping
 
-        if args.gif == 'mp4' and vaapi_driver:
-            ffargs += ['-vf', "format='nv12|vaapi,hwupload'",
-                       '-c:v', 'h264_vaapi', '-rc_mode', '1', '-qp', '20']
-        elif args.gif == 'mp4':
-            ffargs += ['-c:v', 'libx264', 'crf', '21', '-preset', 'slow']
-        elif args.gif == 'hevc' and vaapi_driver:
-            ext = 'mp4'
-            ffargs += ['-vf', 'format=nv12,hwupload',
-                       '-c:v', 'hevc_vaapi', '-rc_mode', '1', '-qp', '28']
-        elif args.gif == 'hevc':
-            ext = 'mp4'
-            ffargs += ['-c:v', 'libx264', '-crf', '21', '-preset', 'slow']
-        elif args.gif == 'webm':
-            ffargs += ['-c:v', 'libvpx-vp9', '-crf', '19']
-        elif args.gif == 'av1':
-            ext = 'webm'
-            ffargs += ['-c:v', 'libsvtav1', '-crf', '30']
+    ffargs_pre, ffargs, ext = ffmpeg_args(args.gif, threads=args.threads)
+    ffargs = [ffmpeg, '-hide_banner'] + \
+        ffargs_pre + ['-i', filename] + ffargs
 
-        dest = os.path.splitext(filename)[0] + '.' + ext
-        ffargs.append(dest)
-        run(ffargs, check=True)
+    dest = os.path.splitext(filename)[0] + '.' + ext
+    ffargs.append(dest)
+    run(ffargs, check=True)
 
-        return dest if keep_smaller(dest, filename) else None
-
-    return handle_generic(filename)
+    return dest if keep_smaller(dest, filename) else None
 
 
 def keep_smaller(new_file, orig_file) -> bool:

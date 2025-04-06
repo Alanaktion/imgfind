@@ -8,17 +8,8 @@ from os import system
 from shlex import quote
 
 from .options import build_parser
-from ..lib.ffmpeg import probe_file
+from ..lib.ffmpeg import probe_file, EXTENSIONS
 
-
-EXTENSIONS = [
-    # Video
-    '3g2', '3gp', 'avi', 'flv', 'm2ts', 'm4v', 'mj2', 'mkv', 'mov',
-    'mp4', 'mpeg', 'mpg', 'ogv', 'rmvb', 'webm', 'wmv', 'y4m',
-    # Audio
-    'aiff', 'ape', 'au', 'flac', 'm4a', 'mka', 'mp3', 'oga', 'ogg',
-    'ogm', 'opus', 'wav', 'wma',
-]
 
 log = logging.getLogger()
 
