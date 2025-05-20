@@ -38,6 +38,8 @@ def build_parser():
                        help='Keep original format, only recompress')
     fmt.add_argument('-F', '--force-format', action='store_true',
                      help='Convert to specified format whenever possible')
+    fmt.add_argument('-K', '--keep-original', action='store_true',
+                     help='Preserve original file when changing formats')
     fmt.add_argument('--quality', type=int, default=85, metavar='INT',
                      help='Target JPEG/WEBP quality')
     fmt.add_argument('--gif', choices=['mp4', 'hevc', 'webm', 'av1'],

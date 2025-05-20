@@ -47,11 +47,11 @@ def main():
         log.error('gm not found on PATH. Install GraphicsMagick.')
         raise Exception()
     if args.crush and not pngcrush:
-        log.warning('pngcrush not found on PATH, PNGs with transparency '
-                    'will not be crushed. Use --no-crush to ignore.')
+        log.warning('pngcrush not found on PATH, PNGs will not be crushed. '
+                    'Use --no-crush to ignore.')
     if args.quantize and not pngquant:
-        log.warning('pngquant not found on PATH, PNGs with transparency '
-                    'will not be quantized. Remove --quantize to ignore.')
+        log.warning('pngquant not found on PATH, PNGs will not be quantized. '
+                    'Remove --quantize to ignore.')
     if args.gif and not ffmpeg:
         log.warning('ffmpeg not found on PATH, GIF animations will not be '
                     'converted to videos. Remove --gif to ignore.')
@@ -307,7 +307,8 @@ def keep_smaller(new_file, orig_file) -> bool:
             os.unlink(new_file)
             return False
         else:
-            os.unlink(orig_file)
+            if not args.keep_original:
+                os.unlink(orig_file)
             return True
     except OSError:
         return False
