@@ -17,6 +17,7 @@ class Options(Namespace):
     max_height: int
     ratio: str
     animated: bool | None
+    wrong_ext: bool
     ai: bool | None
 
     print: bool
@@ -90,6 +91,8 @@ def build_parser():
                           help='match animated images')
     matching.add_argument('--no-animated', action='store_const', const=False,
                           help='match non-animated images', dest='animated')
+    matching.add_argument('--wrong-ext', action='store_true',
+                          help='match images with the wrong file extension')
 
     matching.add_argument('--ai', action='store_const', const=True,
                           help='match images with metadata from generative AIs like Stable Diffusion')

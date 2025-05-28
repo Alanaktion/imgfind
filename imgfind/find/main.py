@@ -52,6 +52,9 @@ def match_image(f: Path, args: Options) -> Image.Image:
     if args.animated is not None and \
             getattr(i, 'is_animated') != args.animated:
         raise NotMatchedError
+    if args.wrong_ext:
+        if i.format.upper() == Image.registered_extensions()[f.suffix.lower()]:
+            raise NotMatchedError
     if args.ai is not None:
         is_ai = exif.image_is_stablediffusion(i)
         if is_ai != args.ai:
