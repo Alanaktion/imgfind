@@ -28,6 +28,7 @@ vaapi_driver = os.environ.get('LIBVA_DRIVER_NAME')
 arch = platform.machine()
 system = platform.system()
 
+# TODO: should use `ffmpeg -hwaccels` to determine supported hwaccel options
 hwaccel = 'vaapi' if vaapi_driver else (
     'videotoolbox' if system == 'Darwin' else None)
 
@@ -74,9 +75,10 @@ def ffmpeg_args(vcodec: str, filters: str = '',
                 args += ['-rc_mode', '1', '-qp', '20']
             elif hwaccel == 'videotoolbox' and arch == 'arm64':
                 # Constant-quality only supported on Apple Silicon
+                # 20 might be too low, should test a range of values
                 args += ['-q:v', '20']
         else:
-            args += ['-c:v', 'libx264', 'crf', '20', '-preset', 'slow']
+            args += ['-c:v', 'libx264', '-crf', '20', '-preset', 'slow']
 
     elif vcodec in ('hevc', 'h265',):
         if hwaccel:
@@ -85,7 +87,8 @@ def ffmpeg_args(vcodec: str, filters: str = '',
                 args += ['-rc_mode', '1', '-qp', '28']
             elif hwaccel == 'videotoolbox' and arch == 'arm64':
                 # Constant-quality only supported on Apple Silicon
-                args += ['-q:v', '28']
+                # TODO: test various qv values to determine good balance of file size and visual quality
+                args += ['-q:v', '35']
         else:
             args += ['-c:v', 'libx265', '-crf', '28', '-preset', 'slow']
 

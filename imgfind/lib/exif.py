@@ -10,11 +10,14 @@ def image_is_stablediffusion(i: Image.Image) -> bool:
 
 
 def image_get_comment(i: Image.Image) -> str:
-    """Get EXIF comment or PNG parameters from image"""
+    """Get EXIF comment or PNG info from image"""
     items = (i.info or {}).copy()
 
     if 'parameters' in items:
         return items['parameters']
+
+    if 'prompt' in items:
+        return items['prompt']
 
     if 'exif' in items:
         exif_data = items['exif']
@@ -45,14 +48,14 @@ def file_get_comment(filename: str) -> str:
     return image_get_comment(Image.open(filename))
 
 
-def file_write_comment(filename: str, comment: str):
-    """Write a string into the EXIF comment or PNG parameters for a file"""
+def file_write_comment(filename: str, comment: str, info_key: str = 'parameters'):
+    """Write a string into the EXIF comment or PNG info for a file"""
     extension = os.path.splitext(filename)[1]
 
     if extension.lower() == '.png':
         image = Image.open(filename)
         pnginfo_data = PngImagePlugin.PngInfo()
-        pnginfo_data.add_text('parameters', comment)
+        pnginfo_data.add_text(info_key, comment)
         image.save(filename, format='png', pnginfo=pnginfo_data)
 
     elif extension.lower() in (".jpg", ".jpeg", ".webp"):
