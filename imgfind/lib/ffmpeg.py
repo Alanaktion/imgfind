@@ -72,13 +72,12 @@ def ffmpeg_args(vcodec: str, filters: str = '',
         if hwaccel:
             args += ['-c:v', f'h264_{hwaccel}',]
             if hwaccel == 'vaapi':
-                args += ['-rc_mode', '1', '-qp', '20']
+                args += ['-rc_mode', '1', '-b:v', '2M']
             elif hwaccel == 'videotoolbox' and arch == 'arm64':
                 # Constant-quality only supported on Apple Silicon
-                # 20 might be too low, should test a range of values
-                args += ['-q:v', '20']
+                args += ['-q:v', '25']
         else:
-            args += ['-c:v', 'libx264', '-crf', '20', '-preset', 'slow']
+            args += ['-c:v', 'libx264', '-crf', '28', '-preset', 'slow']
 
     elif vcodec in ('hevc', 'h265',):
         if hwaccel:
@@ -87,17 +86,16 @@ def ffmpeg_args(vcodec: str, filters: str = '',
                 args += ['-rc_mode', '1', '-qp', '28']
             elif hwaccel == 'videotoolbox' and arch == 'arm64':
                 # Constant-quality only supported on Apple Silicon
-                # TODO: test various qv values to determine good balance of file size and visual quality
-                args += ['-q:v', '35']
+                args += ['-q:v', '25']
         else:
-            args += ['-c:v', 'libx265', '-crf', '28', '-preset', 'slow']
+            args += ['-c:v', 'libx265', '-crf', '30', '-preset', 'slow']
 
     elif vcodec == 'vp8':
-        args += ['-c:v', 'libvpx', '-crf', '20']
+        args += ['-c:v', 'libvpx', '-b:v', '1M']
     elif vcodec in ('webm', 'vp9',):
-        args += ['-c:v', 'libvpx-vp9', '-crf', '20']
+        args += ['-c:v', 'libvpx-vp9', '-b:v', '1500k']
     elif vcodec == 'av1':
-        args += ['-c:v', 'libsvtav1', '-crf', '28']
+        args += ['-c:v', 'libsvtav1', '-crf', '45']
 
     if vcodec in ('h264', 'hevc', 'h265',):
         ext = 'mp4'
