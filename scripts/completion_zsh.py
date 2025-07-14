@@ -9,6 +9,7 @@ try:
     from imgfind.find import options as find_options
     from imgfind.vfind import options as vfind_options
     from imgfind.teeny import options as teeny_options
+    from imgfind.vteeny import options as vteeny_options
 except ModuleNotFoundError:
     import sys
     path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -17,6 +18,7 @@ except ModuleNotFoundError:
     from imgfind.find import options as find_options
     from imgfind.vfind import options as vfind_options
     from imgfind.teeny import options as teeny_options
+    from imgfind.vteeny import options as vteeny_options
 
 TEMPLATE = """#compdef %(cmd)s
 
@@ -66,6 +68,7 @@ everything: list[tuple[str, argparse.ArgumentParser]] = [
     ('ifind', find_options.build_parser()),
     ('vfind', vfind_options.build_parser()),
     ('teeny', teeny_options.build_parser()),
+    ('vteeny', teeny_options.build_parser()),
 ]
 
 for cmd, parser in everything:
