@@ -28,12 +28,12 @@ def build_parser():
 
     fmt = parser.add_argument_group('format options')
     group = fmt.add_mutually_exclusive_group()
-    group.add_argument('-f', '--format', choices=['jpg', 'webp'],
+    group.add_argument('-f', '--format', choices=['jpg', 'webp', 'avif'],
                        default='jpg',
                        help='Target file format. If "jpg", images with '
                             'transparency will not be converted, but other '
-                            'formats will be. If "webp", any input image '
-                            'will be converted.')
+                            'images will be. If "webp" or "avif", any input '
+                            'image will be converted.')
     group.add_argument('-k', '--keep-format', action='store_true',
                        help='Keep original format, only recompress')
     fmt.add_argument('-F', '--force-format', action='store_true',
@@ -42,12 +42,13 @@ def build_parser():
                      help='Preserve original file when changing formats')
     fmt.add_argument('--quality', type=int, default=85, metavar='INT',
                      help='Target JPEG/WEBP quality')
-    fmt.add_argument('--gif', choices=['mp4', 'hevc', 'webm', 'av1'],
+    fmt.add_argument('--gif', choices=['mp4', 'hevc', 'webm', 'av1', 'webp', 'avif'],
                      help='Convert animated GIFs to the specified format. '
                           'mp4 and hevc will use hardware encoder if possible')
     fmt.add_argument('-x', '--keep-exif', action='store_true',
                      help='Preserve EXIF metadata')
 
+    # TODO: support size deltas? e.g. only resize if >100px larger
     size = parser.add_argument_group('size options')
     group = size.add_mutually_exclusive_group()
     group.add_argument('--res', type=int, metavar='INT',

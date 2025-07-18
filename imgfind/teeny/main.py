@@ -11,13 +11,20 @@ import sys
 from .options import build_parser, Options
 from ..lib.exif import file_write_comment, file_get_comment
 from ..lib.ffmpeg import ffmpeg, ffmpeg_args
+from ..lib.graphicsmagick import gm
+from ..lib.imagemagick import magick, mogrify
+
+if gm:
+    from ..lib.graphicsmagick import img_format, convert
+elif magick or mogrify:
+    from ..lib.imagemagick import img_format, convert
+else:
+    from ..lib.pillow import img_format, convert
 
 
 log = logging.getLogger()
 args: Options
 
-gm = shutil.which('gm')
-magick = shutil.which('magick')
 pngcrush = shutil.which('pngcrush')
 pngquant = shutil.which('pngquant')
 
@@ -25,9 +32,12 @@ pngquant = shutil.which('pngquant')
 def parse_args():
     # Allow checking dependency versions, bypassing normal behavior
     if '--version' in sys.argv:
-        run([gm, '-version'])
+        if gm:
+            run([gm, '-version'])
         if magick:
             run([magick, '-version'])
+        if ffmpeg:
+            run([ffmpeg, '-version'])
         if pngcrush:
             run([pngcrush, '-version'])
         if pngquant:
@@ -43,16 +53,24 @@ def main():
     args = parse_args()  # type: ignore
     init_logging(args.log_level)
 
-    if not gm:
-        log.error('gm not found on PATH. Install GraphicsMagick.')
-        raise Exception()
-    if args.crush and not pngcrush:
+    if args.format == 'avif' and gm:
+        global convert
+        # GM does not support writing AVIF files, use ImageMagick or Pillow
+        if magick or mogrify:
+            from ..lib.imagemagick import convert as magick_convert
+            convert = magick_convert
+        else:
+            from ..lib.pillow import convert as pillow_convert
+            convert = pillow_convert
+
+    if args.crush and not pngcrush and \
+            (args.keep_format or args.format == 'jpg'):
         log.warning('pngcrush not found on PATH, PNGs will not be crushed. '
                     'Use --no-crush to ignore.')
     if args.quantize and not pngquant:
         log.warning('pngquant not found on PATH, PNGs will not be quantized. '
                     'Remove --quantize to ignore.')
-    if args.gif and not ffmpeg:
+    if args.gif in ('mp4', 'hevc', 'webm', 'av1') and not ffmpeg:
         log.warning('ffmpeg not found on PATH, GIF animations will not be '
                     'converted to videos. Remove --gif to ignore.')
 
@@ -109,7 +127,9 @@ def handle_dir(dir: str):
 def _handle_file_iter(file: str) -> bool:
     try:
         return handle_file(file)
-    except subprocess.CalledProcessError:
+    except subprocess.CalledProcessError as e:
+        if args.verbose >= logging.WARNING:
+            print(e)
         return False
 
 
@@ -152,15 +172,16 @@ def handle_file(file: str) -> bool:
 
 
 def handle_generic(filename: str) -> str | None:
-    gargs = gm_args(filename)
-    if not gargs:
+    ifmt = img_format(filename)
+    if not should_convert(filename):
         level = logging.DEBUG if args.recursive else logging.INFO
         log.log(level, 'Skip: %s', os.path.basename(filename))
         return None
 
+    convert(filename, args.format, args.quality,
+            resize(ifmt), args.threads, args.keep_exif)
     if args.recursive:
         log.info('Convert: %s', os.path.basename(filename))
-    run([gm, 'mogrify'] + gargs, check=True)
 
     new_filename = os.path.splitext(filename)[0] + '.' + args.format
     return new_filename if keep_smaller(new_filename, filename) else filename
@@ -178,77 +199,68 @@ def handle_png(filename: str) -> str | None:
                      os.path.basename(filename))
             return None
 
-    # Handle WebP conversion regardless of alpha channel
-    if args.format == 'webp':
+    # Use generic conversion when target format supports alpha
+    if args.format in ('webp', 'avif'):
         return handle_generic(filename)
 
-    fmt = img_format(filename)
+    ifmt = img_format(filename)
 
-    # TODO: Handle APNG (maybe generic multi-frame for all formats?)
-    if fmt['scenes'] > 1:
+    # Handle APNG
+    if ifmt['scenes'] > 1:
         return handle_gif(filename)
 
     if args.keep_format:
-        _handle_png_optimize(filename, fmt)
+        _handle_png_optimize(filename, ifmt)
         return filename
 
+    size = resize(ifmt)
+
     # Check for alpha channel
-    if fmt['alpha']:
+    if ifmt['alpha']:
         # Check if alpha channel is actually used
         alpha_used = False
 
-        if magick:
-            # Returns 0-2^16 for minimum alpha value, we'll keep alpha if it is
-            # equal or below 52428 (80% opacity).
-            result = run([magick, 'identify', '-channel', 'alpha',
-                          '-format', '%[min]', filename], capture_output=True)
-            alpha_used = _int_def(result.stdout.strip()) <= 52428
-        else:
-            # Returns number of unique colors in alpha channel, we'll keep
-            # alpha if it is more than one.
-            result = run([gm, 'convert', '-channel', 'Opacity', filename,
-                          '-format', '%k', 'info:-'], capture_output=True)
-            alpha_used = _int_def(result.stdout.strip()) > 1
+        if magick or mogrify:
+            from ..lib.imagemagick import alpha_used as check_alpha
+            alpha_used = check_alpha(filename)
+        elif gm:
+            from ..lib.graphicsmagick import alpha_used as check_alpha
+            alpha_used = check_alpha(filename)
 
         if alpha_used:
-            _geometry = geometry(fmt)
-            if not args.crush and not args.quantize and not _geometry:
+            if not args.crush and not args.quantize and not size:
                 log.debug('Skipping PNG with alpha: %s',
                           os.path.basename(filename))
                 return None
 
-            if not _geometry:
+            if not size:
                 log.info('Crush PNG with alpha: %s',
                          os.path.basename(filename))
             elif args.recursive:
                 log.info('Resize: %s', os.path.basename(filename))
-            _handle_png_optimize(filename, fmt)
+            _handle_png_optimize(filename, ifmt)
             return filename
+
+    if not should_convert(filename):
+        return None
 
     if args.recursive:
         log.info('Convert: %s', os.path.basename(filename))
 
-    gargs = gm_args(filename, fmt)
-    if not gargs:
-        gargs = ['-format', 'jpg', '-quality', str(args.quality),
-                 '-preserve-timestamp', filename]
-    run([gm, 'mogrify'] + gargs, check=True)
-    jpg_filename = os.path.splitext(filename)[0] + '.jpg'
-    return jpg_filename if keep_smaller(jpg_filename, filename) else None
+    convert(filename, args.format, args.quality,
+            size, args.threads, args.keep_exif)
+    out_filename = os.path.splitext(filename)[0] + '.' + args.format
+    return out_filename if keep_smaller(out_filename, filename) else None
 
 
-def _handle_png_optimize(filename: str, fmt: dict):
+def _handle_png_optimize(filename: str, ifmt: dict):
     """Optimize a PNG image without changing to another format"""
-    _geometry = geometry(fmt)
-    if _geometry:
-        # Resize PNG with maximum compression, removing profiles
+    size = resize(ifmt)
+    if size:
+        # Resize PNG with maximum compression
         # TODO: quantize/crush, especially if orig was indexed color
-        gm_args = []
-        if not args.keep_exif:
-            gm_args = ['+profile', '*']
-        run([gm, 'mogrify', '-format', 'png', '-quality', '100',
-             '-geometry', _geometry] + gm_args + ['-preserve-timestamp',
-                                                  filename], check=True)
+        result = convert(filename, 'png', 100, size,
+                         args.threads, args.keep_exif)
         return
 
     tmp_filename = re.sub(r'\.png$', '.tmp.png', filename, flags=re.IGNORECASE)
@@ -268,22 +280,52 @@ def _handle_png_optimize(filename: str, fmt: dict):
 
 
 def handle_gif(filename: str) -> str | None:
-    fmt = img_format(filename)
-    if fmt['scenes'] <= 1:
+    ifmt = img_format(filename)
+    if ifmt['scenes'] <= 1:
         return handle_generic(filename)
 
-    if not args.gif or not ffmpeg:
+    if not args.gif:
+        log.debug('Skipping animated GIF: %s', os.path.basename(filename))
+        return None
+
+    if args.gif in ('mp4', 'hevc', 'webm', 'av1'):
+        return handle_gif_ffmpeg(filename)
+
+    if args.recursive:
+        log.info('Convert: %s', os.path.basename(filename))
+
+    if magick or mogrify:
+        # Use ImageMagick
+        from ..lib.imagemagick import convert as magick_convert
+        magick_convert(filename, args.gif, args.quality,
+                       resize(ifmt), args.threads, args.keep_exif)
+    else:
+        # Use Pillow
+        from ..lib.pillow import convert as pillow_convert
+        pillow_convert(filename, args.gif, args.quality,
+                       resize(ifmt), args.threads, args.keep_exif)
+
+    new_filename = os.path.splitext(filename)[0] + '.' + args.gif
+    return new_filename if keep_smaller(new_filename, filename) else filename
+
+
+def handle_gif_ffmpeg(filename: str) -> str | None:
+    if not ffmpeg:
         log.debug('Skipping animated GIF: %s', os.path.basename(filename))
         return None
 
     log.debug('Converting animated GIF: %s', os.path.basename(filename))
-    ext = args.gif
 
     # TODO: Handle final frame delay not applying correctly when looping
-
-    ffargs_pre, ffargs, ext = ffmpeg_args(args.gif, threads=args.threads)
+    filters = ''
+    if args.gif in ('webp', 'avif'):
+        filters = 'trunc(iw/2)*2:-2'
+    ffargs_pre, ffargs, ext = ffmpeg_args(args.gif, filters, args.threads)
+    if os.path.splitext(filename)[1].lower() == '.gif':
+        ffargs_pre += ['-f', 'gif']
+    pixfmt = ['-pix_fmt', 'yuv420p']
     ffargs = [ffmpeg, '-hide_banner'] + \
-        ffargs_pre + ['-i', filename] + ffargs
+        ffargs_pre + ['-i', filename] + pixfmt + ffargs
 
     dest = os.path.splitext(filename)[0] + '.' + ext
     ffargs.append(dest)
@@ -314,98 +356,37 @@ def keep_smaller(new_file, orig_file) -> bool:
         return False
 
 
-def _int_def(val, default=0) -> int:
-    try:
-        return int(val)
-    except ValueError:
-        return default
+def resize(ifmt: dict) -> tuple[int | None, int | None] | bool:
+    if args.res and min(ifmt['width'], ifmt['height']) > args.res:
+        if ifmt['width'] > ifmt['height']:
+            return (None, args.res)
+        else:
+            return (args.res, None)
+    if args.width and ifmt['width'] > args.width:
+        return (args.res, None)
+    if args.height and ifmt['height'] > args.height:
+        return (None, args.res)
+
+    return False
 
 
-@cache
-def img_format(filename: str) -> dict[str, bool | int]:
-    jpeg = re.search(r'\.j(p([eg]|eg)|fif?|if)$', filename, re.IGNORECASE)
-    parts = [
-        '%m',  # Magick format
-        '%A',  # transparency supported
-        '%[JPEG-Quality]' if jpeg else '%Q',  # JPEG/compression quality
-        '%n',  # number of scenes, will output one entire fmt str per scene
-        '%w',  # width
-        '%h',  # height
-    ]
-    result: subprocess.CompletedProcess[bytes] = run(
-        [gm, 'identify', '-ping', '-format',
-         '/'.join(parts) + r'\n', filename],
-        capture_output=True
-    )
-    try:
-        out = result.stdout.strip().splitlines()[0]
-    except IndexError:
-        out = b'/////'
-    out_parts = out.split(b'/')
-    fmt = {
-        'magick': str(out_parts[0], 'utf-8'),
-        'alpha': out_parts[1] != b'false',
-        'quality': _int_def(out_parts[2]),
-        'scenes': _int_def(out_parts[3], 1),
-        'width': _int_def(out_parts[4]),
-        'height': _int_def(out_parts[5]),
-    }
-    return fmt
-
-
-def geometry(fmt: dict) -> str | None:
-    """Determine target geometry for the image"""
-    # TODO: support size deltas? e.g. only resize if >100px larger
-    if args.res and min(fmt['width'], fmt['height']) > args.res:
-        return (f'x{args.res}' if fmt['width'] > fmt['height'] else
-                f'{args.res}x')
-    if args.width and fmt['width'] > args.width:
-        return f'{args.width}x'
-    if args.height and fmt['height'] > args.height:
-        return f'x{args.height}'
-
-    return None
-
-
-def gm_args(filename: str, fmt: dict | None = None) -> list[str]:
-    """Determine GM Mogrify/Convert args for specified input file"""
-    if fmt is None:
-        fmt = img_format(filename)
+def should_convert(filename: str) -> bool:
+    ifmt = img_format(filename)
 
     do_convert = False
-    _geometry = geometry(fmt)
-    if _geometry:
+    if resize(ifmt):
         do_convert = True
-    if fmt['magick'] in ('WEBP', 'JPEG'):
-        if fmt['quality'] > args.quality + 5:
+    if ifmt['format'] in ('WEBP', 'JPEG'):
+        if args.quality is not None and ifmt['quality'] > args.quality + 5:
             do_convert = True
-        elif args.force_format and args.format.upper() != fmt['magick']:
+        elif args.force_format and args.format.upper() != ifmt['format']:
             do_convert = True
     else:
         do_convert = True
-    if fmt['alpha'] and args.format != 'webp':
+    if ifmt['alpha'] and args.format not in ('webp', 'avif'):
         do_convert = False
-    if fmt['scenes'] > 1:
-        do_convert = False  # Not handling ffmpeg in GM logic
 
-    if not do_convert:
-        return []
-
-    gm_args = []
-    if not args.keep_format:
-        gm_args += ['-format', args.format]
-    gm_args += ['-quality', str(args.quality)]
-    if args.threads:
-        gm_args += ['-limit', 'threads', str(args.threads)]
-    if _geometry:
-        gm_args += ['-geometry', _geometry]
-    if ':' in filename:
-        log.warning('Filename contains ":", gm may not behave correctly: %s',
-                    filename)
-    if not args.keep_exif:
-        gm_args += ['+profile', '*']
-    gm_args += ['-preserve-timestamp', filename]
-    return gm_args
+    return do_convert
 
 
 def run(cmd, **kwargs) -> subprocess.CompletedProcess:
