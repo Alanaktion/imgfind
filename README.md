@@ -59,9 +59,7 @@ python3 -m imgfind.vfind
 
 ### Optimizing image files
 
-If [GraphicsMagick](http://www.graphicsmagick.org/) is installed, the `teeny` utility can be used to optimize or recompress images. **This utility is not lossless by default and will, by design, result in loss of quality for processed images.**
-
-> Contributions are encouraged to help update this utility to work with Pillow and ImageMagick as fallbacks for GraphicsMagick, even if functionality would be more limited in those cases.
+The `teeny` utility can be used to optimize or recompress images. **This utility is not lossless by default and will, by design, result in loss of quality for processed images.**
 
 The most simple behavior is to pass a single image file, which will replace it with a more optimized/heavily compressed version if needed. Use `--help` to see all available options.
 
