@@ -1,5 +1,8 @@
 import os
 from setuptools import setup
+from pathlib import Path
+this_directory = Path(__file__).parent
+long_description = (this_directory / "README.md").read_text()
 
 
 def check_file(f):
@@ -29,4 +32,6 @@ data_files = [
     ]
 ]
 
-setup(data_files=data_files)
+setup(data_files=data_files,
+      long_description=long_description,
+      long_description_content_type='text/markdown')

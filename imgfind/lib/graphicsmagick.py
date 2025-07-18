@@ -20,8 +20,6 @@ def img_format(filename: str) -> dict[str, bool | int]:
         '%w',  # width
         '%h',  # height
     ]
-    print([gm, 'identify', '-ping', '-format',
-         '/'.join(parts) + r'\n', filename])
     result: subprocess.CompletedProcess[bytes] = run(
         [gm, 'identify', '-ping', '-format',
          '/'.join(parts) + r'\n', filename],
