@@ -1,6 +1,10 @@
 from argparse import ArgumentParser, Namespace
 from pathlib import Path
 from PIL import Image
+from typing import Union, Callable
+
+
+RelativeInt = Union[int, Callable[[int], bool]]
 
 
 class Options(Namespace):
@@ -9,12 +13,8 @@ class Options(Namespace):
     name: str
     no_recurse: bool
     format: str
-    width: int
-    height: int
-    min_width: int
-    min_height: int
-    max_width: int
-    max_height: int
+    width: RelativeInt
+    height: RelativeInt
     ratio: str
     animated: bool | None
     wrong_ext: bool
@@ -49,6 +49,18 @@ def dir_paths(dirs: list[str]) -> list[Path]:
     return paths
 
 
+def relative_int(value: str) -> RelativeInt:
+    value = value.strip()
+    try:
+        return int(value)
+    except ValueError:
+        func = eval(f"lambda x: x {value}")
+        func(0)
+        return func
+    except:
+        raise argparse.ArgumentTypeError(f"Invalid expression: '{value}'. Expected integer or expression like '<=1200', '>500'")
+
+
 def _supported_extensions():
     exts: list[str] = []
     for k in Image.registered_extensions().keys():
@@ -73,18 +85,10 @@ def build_parser():
                           help='don\'t recurse subdirectories')
     matching.add_argument('-f', '--format', type=str,
                           help='match images with this format')
-    matching.add_argument('-w', '--width', type=int, metavar='DIM',
-                          help='match images with this exact width')
-    matching.add_argument('-h', '--height', type=int, metavar='DIM',
-                          help='match images with this exact height')
-    matching.add_argument('-mw', '--min-width', type=int, metavar='DIM',
-                          help='match images with at least this width')
-    matching.add_argument('-mh', '--min-height', type=int, metavar='DIM',
-                          help='match images with at least this height')
-    matching.add_argument('--max-width', type=int, metavar='DIM',
-                          help='match images less than or equal to this width')
-    matching.add_argument('--max-height', type=int, metavar='DIM',
-                          help='match images less than or equal to this height')
+    matching.add_argument('-w', '--width', type=relative_int, metavar='INT/EXPR',
+                          help='match images with this width')
+    matching.add_argument('-h', '--height', type=relative_int, metavar='INT/EXPR',
+                          help='match images with this height')
     matching.add_argument('-r', '--ratio', type=str,
                           help='match images with this aspect ratio')
     matching.add_argument('--animated', action='store_const', const=True,

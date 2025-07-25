@@ -19,7 +19,7 @@ The main utility installs as `ifind` globally, can be invoked with `python3 -m i
 Use `--help` to see all available options. Some examples:
 
 ```bash
-# list all 2160p images in the current directory
+# list all 3840x2160 images in the current directory
 ifind -w 3840 -h 2160
 
 # list all 16:9 aspect ratio images in the current directory
@@ -29,10 +29,10 @@ ifind --ratio 16:9
 ifind ./src --convert jpg --resize-max 200 --dest ./thumbnails
 
 # find all PNG images in the user's Pictures directory that are at least 1920 pixels wide, and convert them to WebP using ImageMagick (via --exec)
-ifind ~/Pictures --min-width 1920 --format png --exec 'magick convert -format webp {}'
+ifind ~/Pictures --width '>=1920' --format png --exec 'magick convert -format webp {}'
 
 # Convert large landscape images to 1080p wallpapers
-ifind ./wallpapers --min-width 1920 --ratio landscape \
+ifind ./wallpapers --width '>=1920' --ratio landscape \
   --exec 'gm mogrify -format jpg -quality 85 -resize 1920x1080^ -gravity Center -crop 1920x1080 {}'
 ```
 
@@ -76,6 +76,25 @@ teeny -r --glob '*.png' -f webp --quality 70 --height 1080 .
 
 # use without package in path
 python3 -m imgfind.teeny
+```
+
+### Optimizing video files
+
+If [ffmpeg](https://ffmpeg.org) is installed, the `vteeny` utility can be used similarly to `teeny` to optimize video files. It encodes to HEVC by default and uses hardware encoding when available.
+
+Quality settings are hand-picked per codec with a focus on smaller sizes. If you want manual control over quality you should use `ffmpeg` directly instead of `vteeny`.
+
+Use `--help` to see all available options. Some examples:
+
+```bash
+# optimize a single file
+vteeny example.avi
+
+# convert all videos to AV1/WebM, resizing to a maximum resolution of 1080p
+vteeny -v av1 -v webm --res 1080 -r .
+
+# use without package in path
+python3 -m imgfind.vteeny
 ```
 
 ## Building

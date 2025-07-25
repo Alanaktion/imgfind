@@ -4,7 +4,7 @@ from shlex import quote
 from PIL import Image, UnidentifiedImageError
 import sys
 
-from .options import parse_args, Options
+from .options import parse_args, Options, RelativeInt
 from .actions import do_actions
 from ..lib import exif
 
@@ -20,17 +20,9 @@ def match_image(f: Path, args: Options) -> Image.Image:
     if args.format is not None and \
             i.format.casefold() != args.format.casefold():
         raise NotMatchedError
-    if args.width is not None and i.width != args.width:
+    if args.width is not None and not compare_value(args.width, i.width):
         raise NotMatchedError
-    if args.height is not None and i.height != args.height:
-        raise NotMatchedError
-    if args.min_width is not None and i.width < args.min_width:
-        raise NotMatchedError
-    if args.min_height is not None and i.height < args.min_height:
-        raise NotMatchedError
-    if args.max_width is not None and i.width > args.max_width:
-        raise NotMatchedError
-    if args.max_height is not None and i.height > args.max_height:
+    if args.height is not None and not compare_value(args.height, i.height):
         raise NotMatchedError
     if args.ratio is not None:
         if args.ratio.casefold() == 'square':
@@ -61,6 +53,13 @@ def match_image(f: Path, args: Options) -> Image.Image:
             raise NotMatchedError
 
     return i
+
+
+def compare_value(limit: RelativeInt, test_value: int) -> bool:
+    if callable(limit):
+        return limit(test_value)
+    else:
+        return test_value == limit
 
 
 def main():
