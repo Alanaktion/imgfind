@@ -44,7 +44,7 @@ def probe_file(filename: str) -> dict:
 
 def ffmpeg_args(vcodec: str, filters: str = '',
                 threads: int | None = None) -> tuple[list[str], list[str], str]:
-    pre_args = []
+    pre_args = ['-n']
     args = []
     ext = vcodec
     if hwaccel and vcodec in ('mp4', 'h264', 'hevc', 'h265',):
