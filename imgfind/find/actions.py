@@ -31,8 +31,12 @@ def do_actions(src: Image.Image, f: Path, args: Options):
         suffix = '.jpg'
     elif format == 'png':
         suffix = '.png'
+    elif format == 'avif':
+        suffix = '.avif'
     elif format == 'webp':
         suffix = '.webp'
+    elif format == 'jxl' or format == 'jpegxl':
+        suffix = '.jxl'
     elif format is not None:
         raise ValueError('Unsupported output format ' + format)
 

@@ -19,7 +19,12 @@ if gm:
 elif magick or mogrify:
     from ..lib.imagemagick import img_format, convert
 else:
-    from ..lib.pillow import img_format, convert
+    try:
+        import pyvips
+    except ImportError:
+        from ..lib.pillow import img_format, convert
+    else:
+        from ..lib.libvips import img_format, convert
 
 
 log = logging.getLogger()

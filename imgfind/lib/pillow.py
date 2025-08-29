@@ -24,9 +24,11 @@ def convert(filename: str, dest_format: str, quality: int | None = None,
     with Image.open(filename) as img:
         aspect_ratio = img.width / img.height
         if size[0] is not None and size[1] is None:
-            size = (size[0], size[0] // aspect_ratio)
+            new_size = (size[0], size[0] // aspect_ratio)
         elif size[0] is None and size[1] is not None:
-            size = (size[1] * aspect_ratio, size[1])
+            new_size = (size[1] * aspect_ratio, size[1])
+        else:
+            new_size = size
 
         result = img.resize(new_size)
 

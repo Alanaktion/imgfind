@@ -28,12 +28,12 @@ def build_parser():
 
     fmt = parser.add_argument_group('format options')
     group = fmt.add_mutually_exclusive_group()
-    group.add_argument('-f', '--format', choices=['jpg', 'webp', 'avif'],
+    group.add_argument('-f', '--format', choices=['jpg', 'jxl', 'webp', 'avif'],
                        default='jpg',
                        help='Target file format. If "jpg", images with '
                             'transparency will not be converted, but other '
-                            'images will be. If "webp" or "avif", any input '
-                            'image will be converted.')
+                            'images will be. If "webp"/"avif"/"jxl", any '
+                            'input image will be converted.')
     group.add_argument('-k', '--keep-format', action='store_true',
                        help='Keep original format, only recompress')
     fmt.add_argument('-F', '--force-format', action='store_true',
