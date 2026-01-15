@@ -1,4 +1,3 @@
-from functools import cache
 import glob
 import logging
 from multiprocessing import get_context

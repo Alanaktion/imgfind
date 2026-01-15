@@ -1,4 +1,4 @@
-from argparse import ArgumentParser, Namespace
+from argparse import ArgumentParser, ArgumentTypeError, Namespace
 from pathlib import Path
 from PIL import Image
 from typing import Union, Callable
@@ -58,7 +58,8 @@ def relative_int(value: str) -> RelativeInt:
         func(0)
         return func
     except:
-        raise argparse.ArgumentTypeError(f"Invalid expression: '{value}'. Expected integer or expression like '<=1200', '>500'")
+        raise ArgumentTypeError(
+            f"Invalid expression: '{value}'. Expected integer or expression like '<=1200', '>500'")
 
 
 def _supported_extensions():

@@ -16,6 +16,8 @@ EXTENSIONS = [
 AUDIO_CODECS = {
     'copy': ['-c:a', 'copy'],
     'aac': ['-c:a', 'aac'],
+    'he-aac': ['-c:a', 'libfdk_aac', '-profile:a', 'aac_he_v2'],
+    'opus': ['-c:a', 'libopus'],
     'vorbis': ['-c:a', 'libvorbis'],
     'none': ['-an'],  # remove audio track entirely
 }
@@ -40,6 +42,21 @@ def probe_file(filename: str) -> dict:
                              '-show_format', '-show_streams', filename],
                             capture_output=True, check=True)
     return json.loads(result.stdout)
+
+
+def has_encoder(encoder: str) -> bool:
+    if not ffmpeg:
+        return False
+    result = subprocess.run([ffmpeg, '-hide_banner', '-encoders'],
+                            capture_output=True, text=True)
+    return encoder in result.stdout
+
+
+# Use best encoder by default where possible
+if system == 'Darwin':
+    AUDIO_CODECS['aac'][1] = 'aac_at'
+elif has_encoder('libfdk_aac'):
+    AUDIO_CODECS['aac'][1] = 'libfdk_aac'
 
 
 def ffmpeg_args(vcodec: str, filters: str = '',
@@ -83,7 +100,7 @@ def ffmpeg_args(vcodec: str, filters: str = '',
         if hwaccel:
             args += ['-c:v', f'hevc_{hwaccel}',]
             if hwaccel == 'vaapi':
-                args += ['-rc_mode', '1', '-qp', '28']
+                args += ['-rc_mode', '1', '-qp', '30']
             elif hwaccel == 'videotoolbox' and arch == 'arm64':
                 # Constant-quality only supported on Apple Silicon
                 args += ['-q:v', '25']
