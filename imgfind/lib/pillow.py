@@ -12,7 +12,7 @@ def img_format(filename: str) -> dict[str, bool | int]:
             'format': img.format,
             'alpha': img.has_transparency_data,
             'quality': guess_quality(img),
-            'scenes': img.n_frames,
+            'scenes': getattr(img, 'n_frames', 1),
             'width': img.width,
             'height': img.height,
         }
@@ -25,14 +25,14 @@ def convert(filename: str, dest_format: str, quality: int | None = None,
         aspect_ratio = img.width / img.height
         if size:
             if size[0] is not None and size[1] is None:
-                new_size = (size[0], size[0] // aspect_ratio)
+                new_size = (size[0], int(size[0] / aspect_ratio))
             elif size[0] is None and size[1] is not None:
-                new_size = (size[1] * aspect_ratio, size[1])
+                new_size = (int(size[1] * aspect_ratio), size[1])
             else:
                 new_size = size
             img = img.resize(new_size)
 
-        base_name = os.path.splitext(input_path)[0]
+        base_name = os.path.splitext(filename)[0]
         output_path = f"{base_name}.{dest_format}"
         # TODO: conditionally handle exif, quality.
         img.save(output_path, quality=quality)

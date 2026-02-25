@@ -65,7 +65,14 @@ def convert(filename: str, dest_format: str, quality: int | None = None,
 
 
 def alpha_used(filename: str, min_alpha: int = 52428) -> bool:
-    # Returns 0-2^16 for minimum alpha value, default to 80% of
+    # Check if the image has an alpha channel before reading its minimum value.
+    # Without this, identify returns 0 for %[min] on images with no alpha
+    # channel, which would incorrectly indicate that alpha is in use.
+    type_result = run(['identify', '-format', '%[type]', filename],
+                      capture_output=True)
+    if b'Alpha' not in type_result.stdout:
+        return False
+    # Returns 0-2^16 for minimum alpha value, default to 80% of max
     result = run(['identify', '-channel', 'alpha', '-format',
                  '%[min]', filename], capture_output=True)
     return _int_def(result.stdout.strip()) <= min_alpha
