@@ -1,6 +1,5 @@
 from functools import lru_cache
 import logging
-import os
 import re
 import shutil
 import subprocess
@@ -10,7 +9,7 @@ log = logging.getLogger()
 
 
 @lru_cache
-def img_format(filename: str) -> dict[str, bool | int]:
+def img_format(filename: str) -> dict[str, str | bool | int]:
     jpeg = re.search(r'\.j(p([eg]|eg)|fif?|if)$', filename, re.IGNORECASE)
     parts = [
         '%m',  # Magick format

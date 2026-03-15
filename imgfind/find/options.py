@@ -21,6 +21,8 @@ class Options(Namespace):
     ai: bool | None
 
     print: bool
+    print_comment: bool
+    print_exif: bool
     exec: str
     delete: bool
     dest: Path
@@ -108,6 +110,10 @@ def build_parser():
 
     actions.add_argument('--print', action='store_true',
                          help='print matching files')
+    actions.add_argument('--print-comment', action='store_true',
+                         help='print user comment with matching files')
+    actions.add_argument('--print-exif', action='store_true',
+                         help='print all EXIF data with matching files')
     actions.add_argument('--exec', type=str,
                          help='execute this command on each file')
     actions.add_argument('--delete', action='store_true',

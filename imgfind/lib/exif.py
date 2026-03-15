@@ -74,3 +74,61 @@ def file_write_comment(filename: str, comment: str, info_key: str = 'parameters'
 
     else:
         raise NotImplementedError
+
+
+def file_get_all(filename: str) -> dict:
+    """Return all available EXIF and image info for a file as a dict."""
+    image = Image.open(filename)
+    result: dict = {
+        'format': image.format,
+        'size': image.size,
+    }
+
+    items = (image.info or {}).copy()
+    if items:
+        info_out: dict = {}
+        for k, v in items.items():
+            if isinstance(v, bytes):
+                try:
+                    info_out[k] = v.decode('utf8', errors='ignore')
+                except Exception:
+                    info_out[k] = repr(v)
+            else:
+                info_out[k] = v
+        result['info'] = info_out
+
+    # load EXIF blocks when available
+    if 'exif' in items:
+        exif_data = items['exif']
+        try:
+            exif = piexif.load(exif_data)
+        except Exception:
+            exif = None
+
+        if exif:
+            exif_out: dict = {}
+            for ifd_name, ifd_dict in exif.items():
+                sub: dict = {}
+                for tag, value in ifd_dict.items():
+                    tag_name = piexif.TAGS.get(ifd_name, {}).get(tag, {}).get('name', str(tag))
+                    if isinstance(value, bytes):
+                        # decode user comment specially
+                        if ifd_name == 'Exif' and tag == piexif.ExifIFD.UserComment:
+                            try:
+                                sub[tag_name] = piexif.helper.UserComment.load(value)
+                            except Exception:
+                                try:
+                                    sub[tag_name] = value.decode('utf8', errors='ignore')
+                                except Exception:
+                                    sub[tag_name] = repr(value)
+                        else:
+                            try:
+                                sub[tag_name] = value.decode('utf8', errors='ignore')
+                            except Exception:
+                                sub[tag_name] = repr(value)
+                    else:
+                        sub[tag_name] = value
+                exif_out[ifd_name] = sub
+            result['exif'] = exif_out
+
+    return result

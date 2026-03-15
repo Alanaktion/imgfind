@@ -142,6 +142,7 @@ def handle_file(file: str) -> bool:
     outfile = None
     comment = None
     if args.keep_exif:
+        # TODO: persist more (all compatible) EXIF data
         comment = file_get_comment(file)
     if re.search(r'\.webp$', file, re.IGNORECASE):
         # TODO: Handle animated WebP in some way that works okay.

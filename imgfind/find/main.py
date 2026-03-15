@@ -1,5 +1,5 @@
 from pathlib import Path
-from os import system
+from subprocess import run, CalledProcessError
 from shlex import quote
 from PIL import Image, UnidentifiedImageError
 import sys
@@ -80,8 +80,35 @@ def main():
                     if args.print or args.exec is None:
                         print(f)
 
+                    if args.print_comment:
+                        print(exif.file_get_comment(str(f)))
+
+                    if args.print_exif:
+                        try:
+                            exif_data = None
+                            # Prefer Pillow's Exif interface
+                            try:
+                                exif_data = src.getexif()
+                            except Exception:
+                                exif_data = None
+
+                            if exif_data:
+                                for tag, value in exif_data.items():
+                                    print(f'{tag}: {value}')
+                            else:
+                                # Fallback to file-level EXIF via helper
+                                try:
+                                    print(exif.file_get_all(str(f)))
+                                except Exception:
+                                    print(f'{f}: no EXIF data')
+                        except Exception as e:
+                            print(f'Error reading EXIF for {f}: {e}', file=sys.stderr)
+
                     if args.exec is not None:
-                        system(args.exec.replace('{}', quote(str(f))))
+                        try:
+                            run(args.exec.replace('{}', quote(str(f))), shell=True, check=True)
+                        except CalledProcessError as e:
+                            print(f'Error executing command for {f}: {e}', file=sys.stderr)
 
                     if args.scale or args.resize_max or args.resize_w \
                             or args.resize_h or args.convert:
