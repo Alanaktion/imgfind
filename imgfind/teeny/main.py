@@ -368,9 +368,9 @@ def resize(ifmt: dict) -> tuple[int | None, int | None] | bool:
         else:
             return (args.res, None)
     if args.width and ifmt['width'] > args.width:
-        return (args.res, None)
+        return (args.width, None)
     if args.height and ifmt['height'] > args.height:
-        return (None, args.res)
+        return (None, args.height)
 
     return False
 
